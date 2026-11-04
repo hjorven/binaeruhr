@@ -227,6 +227,8 @@
   function render() {
     document.documentElement.dataset.theme = opts.theme === 'auto' ? '' : opts.theme;
     if (opts.theme === 'auto') delete document.documentElement.dataset.theme;
+    const dark = opts.theme === 'dark' || (opts.theme === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches);
+    document.querySelector('meta[name="theme-color"]').content = dark ? '#111111' : '#fafaf9';
     leds.time = build(timeEl, 'time');
     leds.date = opts.date && opts.dateDots ? build(dateEl, 'date') : [];
     dateEl.classList.toggle('hide', !(opts.date && opts.dateDots));
@@ -294,6 +296,7 @@
     else if (e.key.toLowerCase() === 'o') setOpen(!document.body.classList.contains('open'));
     else if (e.key.toLowerCase() === 'f') full();
   });
+  matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', () => { if (opts.theme === 'auto') render(); });
   document.addEventListener('visibilitychange', () => { if (!document.hidden) tick(); });
 
   render();
