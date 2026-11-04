@@ -2,109 +2,303 @@
 <html lang="de">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#fafaf9">
 <title>Binäruhr</title>
 <style>
   :root {
-    --bg: #0d1117; --panel: #161b22; --text: #c9d1d9; --muted: #6e7681;
-    --off: #21262d; --on: #39d353; --glow: rgba(57, 211, 83, .55);
+    --bg: #fafaf9; --ink: #1c1c1c; --off: #e7e5e4; --muted: #a8a29e; --panel: #ffffff; --line: #e7e5e4;
+    --base: clamp(12px, min(6.8vw, 5.2vh), 30px);
+    --led: var(--base);
+    --gap: calc(var(--led) * .62);
+    --group: calc(var(--led) * 1.9);
   }
+  :root[data-theme="dark"] { --bg: #111111; --ink: #f5f5f4; --off: #262626; --muted: #6b6560; --panel: #1a1a1a; --line: #2a2a2a; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { --bg: #111111; --ink: #f5f5f4; --off: #262626; --muted: #6b6560; --panel: #1a1a1a; --line: #2a2a2a; }
+  }
+  /* Tablet */
+  @media (min-width: 640px) { :root { --base: clamp(16px, min(5vw, 5.4vh), 46px); } }
+  /* Desktop */
+  @media (min-width: 1100px) { :root { --base: clamp(18px, min(3.4vw, 6vh), 56px); } }
+
   * { box-sizing: border-box; }
+  html, body { height: 100%; }
   body {
-    margin: 0; min-height: 100vh; display: flex; flex-direction: column;
-    align-items: center; justify-content: center; gap: 24px; padding: 16px;
-    background: var(--bg); color: var(--text);
-    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Helvetica Neue", Helvetica, Arial, system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased; transition: background .3s, color .3s;
   }
-  h1 { margin: 0; font-weight: 600; letter-spacing: .08em; font-size: 1.4rem; }
-  .clock {
-    display: flex; gap: clamp(8px, 3vw, 28px); padding: clamp(16px, 4vw, 32px);
-    background: var(--panel); border-radius: 16px;
+  main {
+    min-height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: calc(var(--led) * 1.6); padding: 72px 16px 48px;
+    padding-left: max(16px, env(safe-area-inset-left)); padding-right: max(16px, env(safe-area-inset-right));
   }
-  .group { display: flex; gap: clamp(6px, 1.5vw, 12px); }
-  .group + .group { padding-left: clamp(8px, 3vw, 28px); border-left: 1px solid var(--off); }
-  .col { display: flex; flex-direction: column-reverse; gap: clamp(6px, 1.5vw, 12px); align-items: center; }
-  .led {
-    width: clamp(26px, 8vw, 52px); aspect-ratio: 1; border-radius: 50%;
-    background: var(--off); transition: background .25s, box-shadow .25s;
+
+  /* LED-Grundform */
+  .led { width: var(--led); aspect-ratio: 1; border-radius: 50%; background: var(--off); transition: background .35s; flex: none; }
+  .led.on { background: var(--ink); }
+  .led.ghost { visibility: hidden; }
+  .small { --led: calc(var(--base) * .58); }
+
+  /* BCD: Spalten */
+  .bcd { display: flex; gap: var(--group); align-items: flex-end; }
+  .bcd .seg { display: flex; flex-direction: column; align-items: center; gap: calc(var(--led) * .5); }
+  .bcd .cols { display: flex; gap: var(--gap); }
+  .bcd .col { display: flex; flex-direction: column-reverse; gap: var(--gap); }
+  .bcd .weights { display: flex; flex-direction: column-reverse; gap: var(--gap); }
+  .bcd .weights span { height: var(--led); display: flex; align-items: center; }
+
+  /* Binär: Zeilen */
+  .bin { display: grid; grid-template-columns: auto auto; column-gap: calc(var(--led) * .9); row-gap: calc(var(--led) * .75); align-items: center; }
+  .bin .row { display: flex; gap: var(--gap); justify-content: flex-end; }
+  .bin .head { display: flex; gap: var(--gap); justify-content: flex-end; }
+  .bin .head span { width: var(--led); text-align: center; }
+
+  .label, .weights span, .bin .head span, .bin .name {
+    font-size: 11px; letter-spacing: .18em; color: var(--muted); text-transform: uppercase; font-variant-numeric: tabular-nums;
   }
-  .led.on { background: var(--on); box-shadow: 0 0 14px var(--glow); }
-  .led.hidden { visibility: hidden; }
-  .digit, .weights .spacer { height: 20px; line-height: 20px; font-variant-numeric: tabular-nums; color: var(--muted); font-size: .9rem; }
-  .labels { display: flex; gap: 8px; align-items: center; color: var(--muted); font-size: .85rem; }
-  .weights { display: flex; flex-direction: column-reverse; gap: clamp(6px, 1.5vw, 12px); justify-content: flex-start; }
-  .weights span { height: clamp(26px, 8vw, 52px); display: flex; align-items: center; color: var(--muted); font-size: .8rem; }
-  .readout { font-size: 1.6rem; font-variant-numeric: tabular-nums; letter-spacing: .1em; }
-  button {
-    background: var(--panel); color: var(--text); border: 1px solid var(--off);
-    border-radius: 8px; padding: 8px 14px; font: inherit; cursor: pointer;
+  .bin .name { text-align: right; }
+  .readout { font-size: clamp(12px, 1.8vw, 15px); letter-spacing: .5em; margin-right: -.5em; color: var(--muted); font-variant-numeric: tabular-nums; text-align: center; line-height: 2; }
+  .readout .date { display: block; letter-spacing: .3em; font-size: .85em; }
+  .hide { display: none !important; }
+
+  /* Bedienleiste */
+  .bar { position: fixed; top: 0; right: 0; display: flex; gap: 4px; padding: 14px; padding-right: max(14px, env(safe-area-inset-right)); z-index: 2; }
+  .icon {
+    width: 40px; height: 40px; border: 0; border-radius: 50%; background: transparent; color: var(--muted);
+    display: grid; place-items: center; cursor: pointer; transition: color .2s, background .2s;
   }
-  button:hover { border-color: var(--muted); }
-  .hide-readout .readout, .hide-readout .digit { visibility: hidden; }
+  .icon:hover, .icon:focus-visible { color: var(--ink); background: var(--off); outline: none; }
+  .icon svg { width: 20px; height: 20px; }
+
+  /* Einstellungen: Seitenleiste (Desktop/Tablet), Bottom-Sheet (Handy) */
+  .scrim { position: fixed; inset: 0; background: rgba(0,0,0,.18); opacity: 0; pointer-events: none; transition: opacity .25s; z-index: 3; }
+  .panel {
+    position: fixed; top: 0; right: 0; bottom: 0; width: 340px; max-width: 100%; z-index: 4;
+    background: var(--panel); border-left: 1px solid var(--line); padding: 24px; overflow-y: auto;
+    transform: translateX(100%); transition: transform .3s ease;
+  }
+  .open .scrim { opacity: 1; pointer-events: auto; }
+  .open .panel { transform: none; }
+  @media (max-width: 639px) {
+    .panel { top: auto; left: 0; width: 100%; max-height: 82vh; border-left: 0; border-top: 1px solid var(--line);
+      border-radius: 18px 18px 0 0; transform: translateY(100%); padding-bottom: max(24px, env(safe-area-inset-bottom)); }
+    .panel::before { content: ""; display: block; width: 36px; height: 4px; border-radius: 2px; background: var(--off); margin: -8px auto 16px; }
+  }
+  .panel h2 { font-size: 13px; letter-spacing: .25em; text-transform: uppercase; font-weight: 600; margin: 0 0 20px; display: flex; justify-content: space-between; align-items: center; }
+  .panel h3 { font-size: 11px; letter-spacing: .2em; text-transform: uppercase; color: var(--muted); font-weight: 500; margin: 24px 0 10px; }
+  .opt { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 0; font-size: 14px; border-bottom: 1px solid var(--line); }
+  .seg-ctl { display: inline-flex; background: var(--off); border-radius: 999px; padding: 3px; }
+  .seg-ctl button { border: 0; background: transparent; color: var(--muted); font: inherit; font-size: 13px; padding: 6px 12px; border-radius: 999px; cursor: pointer; }
+  .seg-ctl button[aria-pressed="true"] { background: var(--panel); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+  .switch { position: relative; width: 42px; height: 24px; flex: none; }
+  .switch input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+  .switch span { position: absolute; inset: 0; border-radius: 999px; background: var(--off); transition: background .2s; pointer-events: none; }
+  .switch span::after { content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: var(--panel); box-shadow: 0 1px 2px rgba(0,0,0,.2); transition: transform .2s; }
+  .switch input:checked + span { background: var(--ink); }
+  .switch input:checked + span::after { transform: translateX(18px); }
+  .switch input:focus-visible + span { outline: 2px solid var(--muted); outline-offset: 2px; }
+  .hint { font-size: 12px; color: var(--muted); line-height: 1.6; margin-top: 20px; }
 </style>
 </head>
 <body>
-  <h1>BINÄRUHR</h1>
-  <div class="clock" id="clock"></div>
-  <div class="readout" id="readout">--:--:--</div>
-  <div class="labels">
-    <button id="toggle">Zahlen ausblenden</button>
+  <div class="bar">
+    <button class="icon" id="btnFull" aria-label="Vollbild" title="Vollbild">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
+    </button>
+    <button class="icon" id="btnOpts" aria-label="Optionen" title="Optionen" aria-expanded="false" aria-controls="panel">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg>
+    </button>
   </div>
-  <p class="labels">Jede Spalte ist eine Ziffer. Leuchtende Punkte zusammenzählen (8, 4, 2, 1).</p>
+
+  <main>
+    <div id="timeClock"></div>
+    <div id="dateClock" class="small"></div>
+    <div class="readout" id="readout"></div>
+  </main>
+
+  <div class="scrim" id="scrim"></div>
+  <aside class="panel" id="panel" role="dialog" aria-label="Optionen" aria-hidden="true">
+    <h2>Optionen <button class="icon" id="btnClose" aria-label="Schließen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></h2>
+
+    <h3>Zeit</h3>
+    <div class="opt">Format <div class="seg-ctl" data-key="hour12"><button data-val="false">24 h</button><button data-val="true">12 h</button></div></div>
+    <div class="opt">Sekunden <label class="switch"><input type="checkbox" data-key="seconds"><span></span></label></div>
+
+    <h3>Datum</h3>
+    <div class="opt">Datum anzeigen <label class="switch"><input type="checkbox" data-key="date"><span></span></label></div>
+    <div class="opt">Datum als Punkte <label class="switch"><input type="checkbox" data-key="dateDots"><span></span></label></div>
+    <div class="opt">Wochentag <label class="switch"><input type="checkbox" data-key="weekday"><span></span></label></div>
+
+    <h3>Darstellung</h3>
+    <div class="opt">Modus <div class="seg-ctl" data-key="mode"><button data-val="bcd">BCD</button><button data-val="bin">Binär</button></div></div>
+    <div class="opt">Zahlen anzeigen <label class="switch"><input type="checkbox" data-key="numbers"><span></span></label></div>
+    <div class="opt">Wertigkeiten <label class="switch"><input type="checkbox" data-key="weights"><span></span></label></div>
+    <div class="opt">Beschriftung <label class="switch"><input type="checkbox" data-key="labels"><span></span></label></div>
+    <div class="opt">Design <div class="seg-ctl" data-key="theme"><button data-val="auto">Auto</button><button data-val="light">Hell</button><button data-val="dark">Dunkel</button></div></div>
+
+    <p class="hint"><strong>BCD:</strong> jede Spalte ist eine Ziffer, Punkte von unten nach oben zählen 1, 2, 4, 8.<br>
+    <strong>Binär:</strong> jede Zeile ist eine ganze Zahl, Punkte von rechts nach links zählen 1, 2, 4, 8, 16, 32.<br>
+    Tasten: <strong>O</strong> Optionen, <strong>F</strong> Vollbild.</p>
+  </aside>
 
 <script>
-  // BCD: pro Ziffer eine Spalte. Max-Bits je Spalte: H-Zehner 2, H-Einer 4, M-Zehner 3, M-Einer 4, S-Zehner 3, S-Einer 4
-  const layout = [[2, 4], [3, 4], [3, 4]];
-  const clock = document.getElementById('clock');
-  const readout = document.getElementById('readout');
-  const cols = [];
+(() => {
+  const DEFAULTS = { hour12: false, seconds: true, date: false, dateDots: true, weekday: true, mode: 'bcd', numbers: true, weights: false, labels: false, theme: 'auto' };
+  const STORE = 'binaeruhr-optionen';
+  let opts = { ...DEFAULTS };
+  try { Object.assign(opts, JSON.parse(localStorage.getItem(STORE) || '{}')); } catch (e) {}
+  const save = () => { try { localStorage.setItem(STORE, JSON.stringify(opts)); } catch (e) {} };
 
-  const weights = document.createElement('div');
-  weights.className = 'weights';
-  weights.innerHTML = [1, 2, 4, 8].map(w => `<span>${w}</span>`).join('') + '<span class="spacer"></span>';
-  clock.appendChild(weights);
+  const $ = id => document.getElementById(id);
+  const timeEl = $('timeClock'), dateEl = $('dateClock'), readout = $('readout');
+  const WD = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
+  let leds = { time: [], date: [] };
 
-  layout.forEach(group => {
-    const g = document.createElement('div');
-    g.className = 'group';
-    group.forEach(bits => {
-      const col = document.createElement('div');
-      col.className = 'col';
-      const digit = document.createElement('div');
-      digit.className = 'digit';
-      const leds = [];
-      for (let i = 0; i < 4; i++) {
-        const led = document.createElement('div');
-        led.className = 'led' + (i >= bits ? ' hidden' : '');
-        leds.push(led);
-        col.appendChild(led);
-      }
-      col.appendChild(digit);
-      g.appendChild(col);
-      cols.push({ leds, digit });
-    });
-    clock.appendChild(g);
-  });
-
-  function tick() {
-    const d = new Date();
-    const pad = n => String(n).padStart(2, '0');
-    const t = pad(d.getHours()) + pad(d.getMinutes()) + pad(d.getSeconds());
-    [...t].forEach((ch, i) => {
-      const v = Number(ch);
-      cols[i].digit.textContent = ch;
-      cols[i].leds.forEach((led, bit) => led.classList.toggle('on', (v >> bit) & 1));
-    });
-    readout.textContent = `${t.slice(0,2)}:${t.slice(2,4)}:${t.slice(4,6)}`;
-    setTimeout(tick, 1000 - d.getMilliseconds());
+  // Segmente: Name, Kürzel, max. Bits für Zehner (BCD), Bits gesamt (Binär), Wertfunktion
+  function segments(kind) {
+    if (kind === 'time') {
+      const s = [
+        { name: 'Stunde', short: 'H', tens: opts.hour12 ? 1 : 2, bits: opts.hour12 ? 4 : 5,
+          get: d => opts.hour12 ? ((d.getHours() + 11) % 12) + 1 : d.getHours() },
+        { name: 'Minute', short: 'M', tens: 3, bits: 6, get: d => d.getMinutes() },
+      ];
+      if (opts.seconds) s.push({ name: 'Sekunde', short: 'S', tens: 3, bits: 6, get: d => d.getSeconds() });
+      return s;
+    }
+    return [
+      { name: 'Tag', short: 'T', tens: 2, bits: 5, get: d => d.getDate() },
+      { name: 'Monat', short: 'M', tens: 1, bits: 4, get: d => d.getMonth() + 1 },
+      { name: 'Jahr', short: 'J', tens: 4, bits: 7, get: d => d.getFullYear() % 100 },
+    ];
   }
-  tick();
 
-  const btn = document.getElementById('toggle');
-  btn.addEventListener('click', () => {
-    const hidden = document.body.classList.toggle('hide-readout');
-    btn.textContent = hidden ? 'Zahlen einblenden' : 'Zahlen ausblenden';
+  const el = (cls, text) => { const e = document.createElement(cls === 'span' ? 'span' : 'div'); if (cls !== 'span') e.className = cls; if (text != null) e.textContent = text; return e; };
+  const led = ghost => el('led' + (ghost ? ' ghost' : ''));
+
+  function build(container, kind) {
+    container.innerHTML = '';
+    const segs = segments(kind), list = [];
+    if (opts.mode === 'bcd') {
+      container.className = (kind === 'date' ? 'small ' : '') + 'bcd';
+      if (opts.weights) {
+        const w = el('seg'), col = el('weights');
+        [1, 2, 4, 8].forEach(v => col.appendChild(el('span', v)));
+        w.appendChild(col);
+        if (opts.labels) w.appendChild(el('label', ' '));
+        container.appendChild(w);
+      }
+      segs.forEach(s => {
+        const seg = el('seg'), cols = el('cols');
+        const digits = [];
+        [s.tens, 4].forEach(bits => {
+          const col = el('col'), arr = [];
+          for (let i = 0; i < 4; i++) { const l = led(i >= bits); arr.push(l); col.appendChild(l); }
+          cols.appendChild(col); digits.push(arr);
+        });
+        seg.appendChild(cols);
+        if (opts.labels) seg.appendChild(el('label', s.name));
+        container.appendChild(seg);
+        list.push({ s, update: v => { [Math.floor(v / 10), v % 10].forEach((dv, di) => digits[di].forEach((l, b) => l.classList.toggle('on', (dv >> b) & 1))); } });
+      });
+    } else {
+      container.className = (kind === 'date' ? 'small ' : '') + 'bin';
+      const max = Math.max(...segs.map(s => s.bits));
+      if (opts.weights) {
+        container.appendChild(el('name', ''));
+        const head = el('head');
+        for (let b = max - 1; b >= 0; b--) head.appendChild(el('span', 1 << b));
+        container.appendChild(head);
+      }
+      segs.forEach(s => {
+        container.appendChild(el('name', opts.labels ? s.name : ''));
+        const row = el('row'), arr = [];
+        for (let b = max - 1; b >= 0; b--) { const l = led(b >= s.bits); arr.unshift(l); row.appendChild(l); }
+        container.appendChild(row);
+        list.push({ s, update: v => arr.forEach((l, b) => l.classList.toggle('on', (v >> b) & 1)) });
+      });
+      if (!opts.labels && !opts.weights) container.style.gridTemplateColumns = 'auto';
+      if (!opts.labels && !opts.weights) [...container.querySelectorAll('.name')].forEach(n => n.remove());
+    }
+    return list;
+  }
+
+  function render() {
+    document.documentElement.dataset.theme = opts.theme === 'auto' ? '' : opts.theme;
+    if (opts.theme === 'auto') delete document.documentElement.dataset.theme;
+    leds.time = build(timeEl, 'time');
+    leds.date = opts.date && opts.dateDots ? build(dateEl, 'date') : [];
+    dateEl.classList.toggle('hide', !(opts.date && opts.dateDots));
+    if (!(opts.date && opts.dateDots)) dateEl.innerHTML = '';
+    syncPanel();
+    tick(true);
+  }
+
+  const p2 = n => String(n).padStart(2, '0');
+  let timer;
+  function tick(once) {
+    const d = new Date();
+    leds.time.forEach(x => x.update(x.s.get(d)));
+    leds.date.forEach(x => x.update(x.s.get(d)));
+    const t = leds.time.map(x => p2(x.s.get(d))).join(' ') + (opts.hour12 ? (d.getHours() < 12 ? ' am' : ' pm') : '');
+    const showNum = opts.numbers, showDateText = opts.date && (opts.numbers || !opts.dateDots);
+    let html = showNum ? t : '';
+    if (showDateText || (opts.date && opts.weekday)) {
+      const parts = [];
+      if (opts.weekday) parts.push(WD[d.getDay()]);
+      if (showDateText) parts.push(`${p2(d.getDate())}.${p2(d.getMonth() + 1)}.${d.getFullYear()}`);
+      html += `<span class="date">${parts.join('  ')}</span>`;
+    }
+    readout.innerHTML = html;
+    readout.classList.toggle('hide', !html);
+    if (once === true) return;
+    clearTimeout(timer);
+    timer = setTimeout(tick, 1000 - d.getMilliseconds());
+  }
+
+  // Panel
+  const panel = $('panel'), btnOpts = $('btnOpts');
+  function setOpen(open) {
+    document.body.classList.toggle('open', open);
+    panel.setAttribute('aria-hidden', String(!open));
+    btnOpts.setAttribute('aria-expanded', String(open));
+  }
+  btnOpts.onclick = () => setOpen(!document.body.classList.contains('open'));
+  $('btnClose').onclick = $('scrim').onclick = () => setOpen(false);
+
+  function syncPanel() {
+    panel.querySelectorAll('input[data-key]').forEach(i => { i.checked = !!opts[i.dataset.key]; });
+    panel.querySelectorAll('.seg-ctl').forEach(g => g.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(String(opts[g.dataset.key]) === b.dataset.val))));
+    const dd = panel.querySelector('[data-key="dateDots"]'), wd = panel.querySelector('[data-key="weekday"]');
+    dd.disabled = wd.disabled = !opts.date;
+    dd.closest('.opt').style.opacity = wd.closest('.opt').style.opacity = opts.date ? 1 : .4;
+  }
+  panel.querySelectorAll('input[data-key]').forEach(i => i.onchange = () => { opts[i.dataset.key] = i.checked; save(); render(); });
+  panel.querySelectorAll('.seg-ctl button').forEach(b => b.onclick = () => {
+    const k = b.parentElement.dataset.key, v = b.dataset.val;
+    opts[k] = v === 'true' ? true : v === 'false' ? false : v; save(); render();
   });
+
+  // Vollbild
+  const full = () => {
+    if (!document.fullscreenElement) document.documentElement.requestFullscreen?.().catch(() => {});
+    else document.exitFullscreen?.();
+  };
+  $('btnFull').onclick = full;
+  if (!document.documentElement.requestFullscreen) $('btnFull').classList.add('hide');
+
+  document.addEventListener('keydown', e => {
+    if (e.target.closest('input, button') && e.key === ' ') return;
+    if (e.key === 'Escape') setOpen(false);
+    else if (e.key.toLowerCase() === 'o') setOpen(!document.body.classList.contains('open'));
+    else if (e.key.toLowerCase() === 'f') full();
+  });
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) tick(); });
+
+  render();
+  tick();
+})();
 </script>
 </body>
 </html>
