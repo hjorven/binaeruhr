@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Binäruhr</title>
+<style>
+  :root {
+    --bg: #0d1117; --panel: #161b22; --text: #c9d1d9; --muted: #6e7681;
+    --off: #21262d; --on: #39d353; --glow: rgba(57, 211, 83, .55);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 24px; padding: 16px;
+    background: var(--bg); color: var(--text);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  h1 { margin: 0; font-weight: 600; letter-spacing: .08em; font-size: 1.4rem; }
+  .clock {
+    display: flex; gap: clamp(8px, 3vw, 28px); padding: clamp(16px, 4vw, 32px);
+    background: var(--panel); border-radius: 16px;
+  }
+  .group { display: flex; gap: clamp(6px, 1.5vw, 12px); }
+  .group + .group { padding-left: clamp(8px, 3vw, 28px); border-left: 1px solid var(--off); }
+  .col { display: flex; flex-direction: column-reverse; gap: clamp(6px, 1.5vw, 12px); align-items: center; }
+  .led {
+    width: clamp(26px, 8vw, 52px); aspect-ratio: 1; border-radius: 50%;
+    background: var(--off); transition: background .25s, box-shadow .25s;
+  }
+  .led.on { background: var(--on); box-shadow: 0 0 14px var(--glow); }
+  .led.hidden { visibility: hidden; }
+  .digit, .weights .spacer { height: 20px; line-height: 20px; font-variant-numeric: tabular-nums; color: var(--muted); font-size: .9rem; }
+  .labels { display: flex; gap: 8px; align-items: center; color: var(--muted); font-size: .85rem; }
+  .weights { display: flex; flex-direction: column-reverse; gap: clamp(6px, 1.5vw, 12px); justify-content: flex-start; }
+  .weights span { height: clamp(26px, 8vw, 52px); display: flex; align-items: center; color: var(--muted); font-size: .8rem; }
+  .readout { font-size: 1.6rem; font-variant-numeric: tabular-nums; letter-spacing: .1em; }
+  button {
+    background: var(--panel); color: var(--text); border: 1px solid var(--off);
+    border-radius: 8px; padding: 8px 14px; font: inherit; cursor: pointer;
+  }
+  button:hover { border-color: var(--muted); }
+  .hide-readout .readout, .hide-readout .digit { visibility: hidden; }
+</style>
+</head>
+<body>
+  <h1>BINÄRUHR</h1>
+  <div class="clock" id="clock"></div>
+  <div class="readout" id="readout">--:--:--</div>
+  <div class="labels">
+    <button id="toggle">Zahlen ausblenden</button>
+  </div>
+  <p class="labels">Jede Spalte ist eine Ziffer. Leuchtende Punkte zusammenzählen (8, 4, 2, 1).</p>
+
+<script>
+  // BCD: pro Ziffer eine Spalte. Max-Bits je Spalte: H-Zehner 2, H-Einer 4, M-Zehner 3, M-Einer 4, S-Zehner 3, S-Einer 4
+  const layout = [[2, 4], [3, 4], [3, 4]];
+  const clock = document.getElementById('clock');
+  const readout = document.getElementById('readout');
+  const cols = [];
+
+  const weights = document.createElement('div');
+  weights.className = 'weights';
+  weights.innerHTML = [1, 2, 4, 8].map(w => `<span>${w}</span>`).join('') + '<span class="spacer"></span>';
+  clock.appendChild(weights);
+
+  layout.forEach(group => {
+    const g = document.createElement('div');
+    g.className = 'group';
+    group.forEach(bits => {
+      const col = document.createElement('div');
+      col.className = 'col';
+      const digit = document.createElement('div');
+      digit.className = 'digit';
+      const leds = [];
+      for (let i = 0; i < 4; i++) {
+        const led = document.createElement('div');
+        led.className = 'led' + (i >= bits ? ' hidden' : '');
+        leds.push(led);
+        col.appendChild(led);
+      }
+      col.appendChild(digit);
+      g.appendChild(col);
+      cols.push({ leds, digit });
+    });
+    clock.appendChild(g);
+  });
+
+  function tick() {
+    const d = new Date();
+    const pad = n => String(n).padStart(2, '0');
+    const t = pad(d.getHours()) + pad(d.getMinutes()) + pad(d.getSeconds());
+    [...t].forEach((ch, i) => {
+      const v = Number(ch);
+      cols[i].digit.textContent = ch;
+      cols[i].leds.forEach((led, bit) => led.classList.toggle('on', (v >> bit) & 1));
+    });
+    readout.textContent = `${t.slice(0,2)}:${t.slice(2,4)}:${t.slice(4,6)}`;
+    setTimeout(tick, 1000 - d.getMilliseconds());
+  }
+  tick();
+
+  const btn = document.getElementById('toggle');
+  btn.addEventListener('click', () => {
+    const hidden = document.body.classList.toggle('hide-readout');
+    btn.textContent = hidden ? 'Zahlen einblenden' : 'Zahlen ausblenden';
+  });
+</script>
+</body>
+</html>
